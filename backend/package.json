@@ -4,17 +4,32 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "check:db": "node scripts/check-db.js",
+    "test:api": "node scripts/test-api.js",
+    "test:departments": "node scripts/test-departments.js",
+    "test:labours": "node scripts/test-labours.js",
+    "test:phase4-5": "node scripts/test-phase4-5.js",
+    "test:phase6-12": "node scripts/test-phase6-12.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mssql": "^12.5.4"
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "msnodesqlv8": "^5.2.0",
+    "mssql": "^12.5.4",
+    "multer": "^1.4.5-lts.2",
+    "twilio": "^5.13.1",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

@@ -1,13 +1,23 @@
 {
   "name": "labour-management-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Labour Management System — backend + frontend",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm run dev --prefix backend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm start --prefix frontend",
+    "dev:all": "concurrently -n backend,frontend -c blue,green \"npm run dev --prefix backend\" \"npm start --prefix frontend\"",
+    "backend": "npm run dev --prefix backend",
+    "frontend": "npm start --prefix frontend",
+    "start:backend": "npm start --prefix backend",
+    "check:db": "npm run check:db --prefix backend",
+    "test:api": "npm run test:api --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "ISC"
 }

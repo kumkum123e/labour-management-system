@@ -1,0 +1,7 @@
+-- Your database already has these tables (from SSMS / Azure Data Studio):
+--   users (user_id, username, password_hash, role_id, is_active, created_at)
+--   roles (role_id, role_name) — ADMIN, HOD, LABOUR
+--
+-- Default test users:
+--   rajesh / 123456  (HOD)
+--   ravi   / 123456  (LABOUR)
