@@ -39,6 +39,9 @@ const { connectDB, getPool } = require("./config/db");
     console.log("Deleting labour_documents...");
     await transaction.request().query("DELETE FROM labour_documents");
 
+    console.log("Deleting security_profiles...");
+    await transaction.request().query("DELETE FROM security_profiles");
+
     console.log("Deleting labour_profiles...");
     await transaction.request().query("DELETE FROM labour_profiles");
 

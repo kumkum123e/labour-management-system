@@ -3,5 +3,6 @@ export const getRoleDashboardPath = (role) => {
   if (r === "ADMIN") return "/admin/dashboard";
   if (r === "HOD") return "/hod/dashboard";
   if (r === "LABOUR") return "/labour/dashboard";
+  if (r === "SECURITY") return "/security/dashboard";
   return "/login";
 };

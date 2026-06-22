@@ -352,12 +352,27 @@ const deactivateLabourProfile = async (id) => {
   return getLabourById(id);
 };
 
+const getLabourByCode = async (code) => {
+  const pool = getPool();
+  const result = await pool
+    .request()
+    .input("employee_id", sql.VarChar, code.trim())
+    .query(`${baseSelect} WHERE lp.employee_id = @employee_id`);
+
+  if (result.recordset.length === 0) {
+    throw new AppError("Labour profile not found", 404);
+  }
+  return mapLabour(result.recordset[0]);
+};
+
 module.exports = {
   createLabourProfile,
   getAllLabourProfiles,
   getLabourById,
+  getLabourByCode,
   assertAccess,
   updateLabourProfile,
   deactivateLabourProfile,
   mapLabour,
 };
+

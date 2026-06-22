@@ -14,7 +14,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -23,8 +23,8 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       const path = window.location.pathname;
       if (!path.startsWith("/login") && !path.endsWith("-login")) {
         if (path.startsWith("/admin")) {
@@ -32,6 +32,8 @@ api.interceptors.response.use(
         } else if (path.startsWith("/hod")) {
           window.location.href = "/hod-login";
         } else if (path.startsWith("/labour")) {
+          window.location.href = "/labour-login";
+        } else if (path.startsWith("/security")) {
           window.location.href = "/labour-login";
         } else {
           window.location.href = "/login";

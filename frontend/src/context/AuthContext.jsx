@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("user");
+    const saved = sessionStorage.getItem("user");
     if (!saved) return null;
     try {
       const parsed = JSON.parse(saved);
@@ -25,8 +25,8 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const data = await authService.login(username, password);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
       return data;
     } finally {
@@ -35,15 +35,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     setUser(null);
   };
 
   const hasRole = (role) => String(user?.role || "").toUpperCase() === String(role).toUpperCase();
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) setUser(null);
+    if (!sessionStorage.getItem("token")) setUser(null);
 
     const checkNet = async () => {
       try {

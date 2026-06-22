@@ -4,23 +4,21 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../../hooks/useAuth";
 import { getRoleDashboardPath } from "../../utils/roleRedirect";
 import { FaUserTie, FaArrowLeft } from "react-icons/fa";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import Alert from "../../components/common/Alert";
 
 export default function HODLogin() {
   const { login, logout, loading, user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit } = useForm();
 
   useEffect(() => {
     if (user) {
-      if (String(user.role).trim().toUpperCase() === "HOD") {
-        navigate("/hod/dashboard", { replace: true });
-      } else {
-        logout();
-      }
+      navigate(getRoleDashboardPath(user.role), { replace: true });
     }
-  }, [user, logout, navigate]);
+  }, [user, navigate]);
 
   const onSubmit = async ({ username, password }) => {
     setError("");
@@ -68,12 +66,21 @@ export default function HODLogin() {
           <div>
             <label className="block text-sm font-semibold text-slate-700">
               Password
-              <input
-                type="password"
-                className="form-input mt-1.5"
-                placeholder="••••••••"
-                {...register("password", { required: true })}
-              />
+              <div className="relative mt-1.5">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="form-input pr-10"
+                  placeholder="••••••••"
+                  {...register("password", { required: true })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                </button>
+              </div>
             </label>
           </div>
           <button type="submit" className="btn-primary mt-4 w-full py-2.5 flex justify-center items-center font-semibold text-base transition-all duration-200 shadow-md shadow-emerald-800/10 hover:shadow-lg hover:shadow-emerald-800/20 bg-emerald-700 hover:bg-emerald-800" disabled={loading}>

@@ -6,7 +6,7 @@ const { handleValidation, assignLabourHodRules, updateHodRules } = require("../v
 
 const router = express.Router();
 
-router.get("/", protect, authorize("ADMIN", "HOD"), getAllHods);
+router.get("/", protect, authorize("ADMIN", "HOD", "SECURITY"), getAllHods);
 
 router.patch(
   "/assign-labour/:labourId",

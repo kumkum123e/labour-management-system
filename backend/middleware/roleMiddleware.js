@@ -23,11 +23,11 @@ const authorize = (...roles) => {
     const userRole = normalizeRole(req.user.role);
 
     if (userRole === "ADMIN") {
-      const { isPrivateIp } = require("../utils/ipUtils");
-      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-      if (!isPrivateIp(clientIp)) {
+      const { getClientIp, isAdminIpAllowed } = require("../utils/ipUtils");
+      const clientIp = getClientIp(req);
+      if (!isAdminIpAllowed(clientIp)) {
         return res.status(403).json({
-          message: "Admin operations are restricted to private network only",
+          message: "Admin operations are restricted to authorized connections only",
         });
       }
       return next();

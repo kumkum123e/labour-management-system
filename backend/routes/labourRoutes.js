@@ -5,6 +5,7 @@ const {
   createLabour,
   getAllLabours,
   getLabourById,
+  getLabourByCode,
   updateLabour,
   deactivateLabour,
 } = require("../controllers/labourController");
@@ -47,6 +48,13 @@ router.get(
   labourIdParam,
   handleValidation,
   listDocuments
+);
+
+router.get(
+  "/code/:employeeCode",
+  protect,
+  authorize("ADMIN", "HOD", "SECURITY"),
+  getLabourByCode
 );
 
 router.get(

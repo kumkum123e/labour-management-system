@@ -44,7 +44,7 @@ router.post(
   addDepartment
 );
 
-router.get("/", protect, authorize("ADMIN", "HOD"), getAllDepartments);
+router.get("/", protect, authorize("ADMIN", "HOD", "SECURITY"), getAllDepartments);
 
 router.get(
   "/:id",
@@ -58,7 +58,7 @@ router.get(
 router.get(
   "/:id/hods",
   protect,
-  authorize("ADMIN", "HOD"),
+  authorize("ADMIN", "HOD", "SECURITY"),
   departmentIdParam,
   handleValidation,
   getDepartmentHods

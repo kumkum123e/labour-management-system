@@ -9,6 +9,7 @@ import EditLabour from "../pages/admin/EditLabour";
 import Reports from "../pages/admin/Reports";
 import Backup from "../pages/admin/Backup";
 import ActivityLogs from "../pages/admin/ActivityLogs";
+import SecurityManagement from "../pages/admin/SecurityManagement";
 
 export default function AdminRoutes() {
   return (
@@ -24,6 +25,7 @@ export default function AdminRoutes() {
           <Route path="labour/edit/:id" element={<EditLabour />} />
           <Route path="reports" element={<Reports />} />
           <Route path="activity-logs" element={<ActivityLogs />} />
+          <Route path="security-accounts" element={<SecurityManagement />} />
           <Route path="backup" element={<Backup />} />
         </Route>
       </Routes>

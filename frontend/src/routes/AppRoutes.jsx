@@ -9,6 +9,7 @@ import Logout from "../pages/auth/Logout";
 import AdminRoutes from "./AdminRoutes";
 import HODRoutes from "./HODRoutes";
 import LabourRoutes from "./LabourRoutes";
+import SecurityRoutes from "./SecurityRoutes";
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function AppRoutes() {
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="/hod/*" element={<HODRoutes />} />
       <Route path="/labour/*" element={<LabourRoutes />} />
+      <Route path="/security/*" element={<SecurityRoutes />} />
       <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

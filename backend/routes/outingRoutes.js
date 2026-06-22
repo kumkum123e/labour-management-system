@@ -25,7 +25,7 @@ router.get("/admin/monitor", protect, authorize("ADMIN"), getAdminMonitor);
 router.post(
   "/",
   protect,
-  authorize("LABOUR"),
+  authorize("LABOUR", "SECURITY"),
   createOutingRules,
   handleValidation,
   createOutingRequest
@@ -34,14 +34,14 @@ router.post(
 router.get(
   "/",
   protect,
-  authorize("ADMIN", "HOD", "LABOUR"),
+  authorize("ADMIN", "HOD", "LABOUR", "SECURITY"),
   getOutingRequests
 );
 
 router.get(
   "/:id",
   protect,
-  authorize("ADMIN", "HOD", "LABOUR"),
+  authorize("ADMIN", "HOD", "LABOUR", "SECURITY"),
   requestIdParam,
   handleValidation,
   getOutingRequestById

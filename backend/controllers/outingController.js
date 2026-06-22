@@ -94,7 +94,7 @@ const approveOutingRequest = async (req, res) => {
       entityId: data.requestID,
       ipAddress: getClientIp(req),
     });
-    const labourUserId = await notifyLabourUserId(data.labourID);
+    const labourUserId = await notifyLabourUserId(data.labourID, data.securityID);
     if (labourUserId) {
       await createNotification({
         userId: labourUserId,
@@ -124,7 +124,7 @@ const rejectOutingRequest = async (req, res) => {
       entityId: data.requestID,
       ipAddress: getClientIp(req),
     });
-    const labourUserId = await notifyLabourUserId(data.labourID);
+    const labourUserId = await notifyLabourUserId(data.labourID, data.securityID);
     if (labourUserId) {
       await createNotification({
         userId: labourUserId,

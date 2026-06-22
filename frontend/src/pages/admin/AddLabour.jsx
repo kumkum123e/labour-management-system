@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageHeader from "../../components/common/PageHeader";
 import Alert from "../../components/common/Alert";
 import LabourListSection from "../../components/forms/LabourListSection";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { getDepartments } from "../../services/departmentService";
 import { createLabour, uploadDocument } from "../../services/labourService";
 
@@ -11,18 +12,39 @@ export default function AddLabour() {
   const qc = useQueryClient();
   const [message, setMessage] = useState({ type: "", text: "" });
   const [photo, setPhoto] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, reset, watch } = useForm({
-    defaultValues: {
-      joiningDate: new Date().toISOString().slice(0, 10),
-      password: "123456",
-      departmentId: "",
-      hodName: "",
-      hodMobile: "",
-    },
+    defaultValues: (() => {
+      const saved = localStorage.getItem("addLabourForm");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // ignore
+        }
+      }
+      return {
+        joiningDate: new Date().toISOString().slice(0, 10),
+        password: "123456",
+        departmentId: "",
+        hodName: "",
+        hodMobile: "",
+        employeeCode: "",
+        labourName: "",
+        contractorName: "",
+        phone: "",
+        address: "",
+      };
+    })(),
   });
 
-  const departmentId = watch("departmentId");
+  const formValues = watch();
+  const departmentId = formValues.departmentId;
+
+  useEffect(() => {
+    localStorage.setItem("addLabourForm", JSON.stringify(formValues));
+  }, [formValues]);
 
   const { data: departments, isError, error } = useQuery({
     queryKey: ["departments"],
@@ -153,9 +175,18 @@ export default function AddLabour() {
           Address
           <textarea className="form-input" rows={2} {...register("address")} />
         </label>
-        <label className="text-sm font-medium">
+        <label className="text-sm font-medium block">
           Login Password
-          <input type="password" className="form-input" {...register("password")} />
+          <div className="relative mt-1">
+            <input type={showPassword ? "text" : "password"} className="form-input pr-10" {...register("password")} />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+            >
+              {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+            </button>
+          </div>
         </label>
         <button type="submit" className="btn-primary" disabled={!departmentId}>
           Create Labour Profile

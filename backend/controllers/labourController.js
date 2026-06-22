@@ -89,10 +89,22 @@ const deactivateLabour = async (req, res) => {
   }
 };
 
+const getLabourByCode = async (req, res) => {
+  if (!isDbConnected()) return dbUnavailable(res);
+  try {
+    const data = await labourService.getLabourByCode(req.params.employeeCode);
+    res.json({ success: true, data });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 module.exports = {
   createLabour,
   getAllLabours,
   getLabourById,
+  getLabourByCode,
   updateLabour,
   deactivateLabour,
 };
+

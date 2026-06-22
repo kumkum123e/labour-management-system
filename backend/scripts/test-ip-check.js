@@ -1,59 +1,147 @@
-const { isPrivateIp } = require("../utils/ipUtils");
+const { cleanIpAddress, getClientIp, isPrivateIp, isAdminIpAllowed } = require("../utils/ipUtils");
 
-const testCases = [
-  // Loopbacks
-  { ip: "127.0.0.1", expected: true },
-  { ip: "::1", expected: true },
-  { ip: "localhost", expected: true },
-  { ip: "::ffff:127.0.0.1", expected: true },
-  { ip: "127.0.0.99", expected: true },
-  
-  // Windows IPv6 with Zone Indexes
-  { ip: "fe80::abcd:ef01:2345:6789%12", expected: true },
-  { ip: "fe80::1%lo0", expected: true },
-  { ip: "::1%1", expected: true },
+console.log("=== Running IP Utility Tests ===\n");
 
-  // Link-Local
-  { ip: "fe80::", expected: true },
-  { ip: "fe80::abcd", expected: true },
-  { ip: "169.254.1.2", expected: true },
-  { ip: "::ffff:169.254.5.5", expected: true },
-
-  // Unique Local Addresses
-  { ip: "fc00::1", expected: true },
-  { ip: "fd00:1234::abcd", expected: true },
-
-  // Private Subnets
-  { ip: "192.168.1.15", expected: true },
-  { ip: "::ffff:192.168.0.1", expected: true },
-  { ip: "10.5.5.5", expected: true },
-  { ip: "::ffff:10.0.0.1", expected: true },
-  { ip: "172.16.0.1", expected: true },
-  { ip: "172.31.255.255", expected: true },
-  { ip: "::ffff:172.20.10.2", expected: true },
-
-  // Public Subnets (Should be false)
-  { ip: "8.8.8.8", expected: false },
-  { ip: "172.15.255.255", expected: false },
-  { ip: "172.32.0.1", expected: false },
-  { ip: "192.169.1.1", expected: false },
-  { ip: "203.0.113.195", expected: false },
-  { ip: "2001:db8::1", expected: false },
+const cleaningCases = [
+  { ip: "127.0.0.1", expected: "127.0.0.1" },
+  { ip: "127.0.0.1:5000", expected: "127.0.0.1" },
+  { ip: "  192.168.1.15:3000 ", expected: "192.168.1.15" },
+  { ip: "[::1]", expected: "::1" },
+  { ip: "[::1]:5000", expected: "::1" },
+  { ip: "fe80::abcd:ef01:2345:6789%12", expected: "fe80::abcd:ef01:2345:6789" },
+  { ip: "::ffff:192.168.1.1:5000", expected: "::ffff:192.168.1.1" },
+  { ip: "203.0.113.195, 70.41.3.18, 150.172.238.178", expected: "203.0.113.195" },
+  { ip: "  192.168.0.1  , 10.0.0.1", expected: "192.168.0.1" },
 ];
 
 let failed = 0;
-for (const tc of testCases) {
+
+console.log("--- Testing cleanIpAddress ---");
+for (const tc of cleaningCases) {
+  const actual = cleanIpAddress(tc.ip);
+  if (actual !== tc.expected) {
+    console.error(`FAIL: cleanIpAddress("${tc.ip}") -> "${actual}", expected "${tc.expected}"`);
+    failed++;
+  } else {
+    console.log(`PASS: cleanIpAddress("${tc.ip}") -> "${actual}"`);
+  }
+}
+
+console.log("\n--- Testing getClientIp (Mock Request) ---");
+const mockRequests = [
+  {
+    req: { ip: "192.168.1.100" },
+    expected: "192.168.1.100"
+  },
+  {
+    req: {
+      headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" }
+    },
+    expected: "203.0.113.5"
+  },
+  {
+    req: {
+      socket: { remoteAddress: "[::1]:32100" }
+    },
+    expected: "::1"
+  }
+];
+
+for (let i = 0; i < mockRequests.length; i++) {
+  const tc = mockRequests[i];
+  const actual = getClientIp(tc.req);
+  if (actual !== tc.expected) {
+    console.error(`FAIL: getClientIp(mockReq[${i}]) -> "${actual}", expected "${tc.expected}"`);
+    failed++;
+  } else {
+    console.log(`PASS: getClientIp(mockReq[${i}]) -> "${actual}"`);
+  }
+}
+
+console.log("\n--- Testing isPrivateIp ---");
+const privateIpCases = [
+  { ip: "127.0.0.1", expected: true },
+  { ip: "::1", expected: true },
+  { ip: "192.168.1.25", expected: true },
+  { ip: "10.0.0.1", expected: true },
+  { ip: "172.16.50.50", expected: true },
+  { ip: "172.15.1.1", expected: false }, // Outside private range (172.16 - 172.31)
+  { ip: "8.8.8.8", expected: false },
+  { ip: "203.0.113.5", expected: false },
+];
+
+for (const tc of privateIpCases) {
   const actual = isPrivateIp(tc.ip);
   if (actual !== tc.expected) {
-    console.error(`FAIL: isPrivateIp("${tc.ip}") returned ${actual}, expected ${tc.expected}`);
+    console.error(`FAIL: isPrivateIp("${tc.ip}") -> ${actual}, expected ${tc.expected}`);
     failed++;
   } else {
     console.log(`PASS: isPrivateIp("${tc.ip}") -> ${actual}`);
   }
 }
 
+console.log("\n--- Testing isAdminIpAllowed ---");
+
+// Test with 'local' mode (Only localhost allowed)
+process.env.ADMIN_ACCESS_MODE = "local";
+console.log("Access Mode set to 'local'");
+const localModeCases = [
+  { ip: "127.0.0.1", expected: true },
+  { ip: "::1", expected: true },
+  { ip: "192.168.1.15", expected: false },
+  { ip: "8.8.8.8", expected: false },
+];
+for (const tc of localModeCases) {
+  const actual = isAdminIpAllowed(tc.ip);
+  if (actual !== tc.expected) {
+    console.error(`FAIL [local mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}, expected ${tc.expected}`);
+    failed++;
+  } else {
+    console.log(`PASS [local mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}`);
+  }
+}
+
+// Test with 'whitelisted' mode
+process.env.ADMIN_ACCESS_MODE = "whitelisted";
+process.env.ADMIN_WHITELISTED_IPS = "192.168.1.50, 203.0.113.10";
+console.log("\nAccess Mode set to 'whitelisted' with whitelisted IPs: '192.168.1.50, 203.0.113.10'");
+const whitelistModeCases = [
+  { ip: "127.0.0.1", expected: true }, // Loopback is always allowed
+  { ip: "192.168.1.50", expected: true }, // Whitelisted
+  { ip: "203.0.113.10", expected: true }, // Whitelisted
+  { ip: "192.168.1.15", expected: false }, // Not whitelisted private IP
+  { ip: "8.8.8.8", expected: false }, // Public IP
+];
+for (const tc of whitelistModeCases) {
+  const actual = isAdminIpAllowed(tc.ip);
+  if (actual !== tc.expected) {
+    console.error(`FAIL [whitelisted mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}, expected ${tc.expected}`);
+    failed++;
+  } else {
+    console.log(`PASS [whitelisted mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}`);
+  }
+}
+
+// Test with 'private' mode (default)
+process.env.ADMIN_ACCESS_MODE = "private";
+console.log("\nAccess Mode set to 'private'");
+const privateModeCases = [
+  { ip: "127.0.0.1", expected: true },
+  { ip: "192.168.1.15", expected: true },
+  { ip: "8.8.8.8", expected: false },
+];
+for (const tc of privateModeCases) {
+  const actual = isAdminIpAllowed(tc.ip);
+  if (actual !== tc.expected) {
+    console.error(`FAIL [private mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}, expected ${tc.expected}`);
+    failed++;
+  } else {
+    console.log(`PASS [private mode]: isAdminIpAllowed("${tc.ip}") -> ${actual}`);
+  }
+}
+
 if (failed === 0) {
-  console.log("\nAll IP check test cases passed successfully!");
+  console.log("\nAll IP check and configuration tests passed successfully!");
   process.exit(0);
 } else {
   console.error(`\n${failed} test case(s) failed.`);

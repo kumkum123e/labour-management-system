@@ -1,24 +1,18 @@
 import { useState } from "react";
 import { NavLink, Outlet, Navigate } from "react-router-dom";
-import { FiGrid, FiUserPlus, FiBriefcase, FiUsers, FiFileText, FiDatabase, FiActivity, FiLogOut, FiMenu, FiX } from "react-icons/fi";
+import { FiGrid, FiFileText, FiLogOut, FiMenu, FiX } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 
 const links = [
-  { to: "/admin/dashboard", label: "Dashboard", icon: FiGrid, end: true },
-  { to: "/admin/labour", label: "Add Labour", icon: FiUserPlus },
-  { to: "/admin/departments", label: "Departments", icon: FiBriefcase },
-  { to: "/admin/hods", label: "HODs", icon: FiUsers },
-  { to: "/admin/security-accounts", label: "Security Accounts", icon: FiUsers },
-  { to: "/admin/reports", label: "Reports", icon: FiFileText },
-  { to: "/admin/activity-logs", label: "Activity Logs", icon: FiActivity },
-  { to: "/admin/backup", label: "Backup", icon: FiDatabase },
+  { to: "/security/dashboard", label: "Create Request", icon: FiGrid, end: true },
+  { to: "/security/reports", label: "Outing Reports", icon: FiFileText },
 ];
 
-export default function AdminLayout() {
+export default function SecurityLayout() {
   const { user, logout, hasRole } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (!user || !hasRole("ADMIN")) return <Navigate to="/admin-login" replace />;
+  if (!user || (!hasRole("SECURITY") && !hasRole("ADMIN"))) return <Navigate to="/labour-login" replace />;
 
   return (
     <div className="flex min-h-screen bg-slate-100 relative">
@@ -38,7 +32,7 @@ export default function AdminLayout() {
       >
         <div className="flex items-center justify-between border-b border-slate-700 p-5">
           <div>
-            <h2 className="text-lg font-semibold text-white">Admin Panel</h2>
+            <h2 className="text-lg font-semibold text-white">Security Panel</h2>
             <p className="mt-1 text-xs text-slate-400">{user.username}</p>
           </div>
           {/* Mobile close button */}
@@ -67,11 +61,7 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <button
-          type="button"
-          onClick={logout}
-          className="m-3 flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800"
-        >
+        <button type="button" onClick={logout} className="m-3 flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
           <FiLogOut /> Logout
         </button>
       </aside>
@@ -80,7 +70,7 @@ export default function AdminLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile Header Bar */}
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 md:hidden">
-          <h2 className="text-lg font-bold text-slate-900">Admin Panel</h2>
+          <h2 className="text-lg font-bold text-slate-900">Security Panel</h2>
           <button 
             type="button" 
             className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"

@@ -58,12 +58,23 @@ const notifyHodUserId = async (hodId) => {
   return result.recordset[0]?.user_id || null;
 };
 
-const notifyLabourUserId = async (labourId) => {
-  const result = await getPool()
-    .request()
-    .input("labour_id", sql.Int, labourId)
-    .query("SELECT user_id FROM labour_profiles WHERE labour_id = @labour_id");
-  return result.recordset[0]?.user_id || null;
+const notifyLabourUserId = async (labourId, securityId = null) => {
+  const pool = getPool();
+  if (labourId) {
+    const result = await pool
+      .request()
+      .input("labour_id", sql.Int, labourId)
+      .query("SELECT user_id FROM labour_profiles WHERE labour_id = @labour_id");
+    return result.recordset[0]?.user_id || null;
+  }
+  if (securityId) {
+    const result = await pool
+      .request()
+      .input("security_id", sql.Int, securityId)
+      .query("SELECT user_id FROM security_profiles WHERE security_id = @security_id");
+    return result.recordset[0]?.user_id || null;
+  }
+  return null;
 };
 
 module.exports = {

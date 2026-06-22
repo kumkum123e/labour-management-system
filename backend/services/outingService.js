@@ -5,8 +5,10 @@ const { AppError } = require("./departmentService");
 const mapRequest = (row) => ({
   requestID: row.request_id,
   labourID: row.labour_id,
+  securityID: row.security_id,
   labourName: row.labour_name,
   employeeCode: row.employee_id,
+  contractorName: row.contractor_name,
   departmentName: row.department_name,
   hodID: row.hod_id,
   hodName: row.hod_name,
@@ -23,18 +25,27 @@ const mapRequest = (row) => ({
   rejectedAt: row.rejected_at,
   isUrgent: row.is_urgent === true || row.is_urgent === 1,
   createdAt: row.created_at,
+  securityUserID: row.security_user_id,
+  securityUsername: row.security_username,
+  securitySignature: row.security_signature,
 });
 
 const baseSelect = `
-  SELECT r.request_id, r.labour_id, lp.labour_name, lp.employee_id,
+  SELECT r.request_id, r.labour_id, r.security_id,
+         COALESCE(lp.labour_name, sp.security_name) AS labour_name,
+         COALESCE(lp.employee_id, sp.security_code) AS employee_id,
+         lp.contractor_name,
          d.department_name, r.hod_id, h.hod_name,
          r.request_date, r.out_time, r.return_time, r.reason, r.status,
          r.hod_remarks, r.approved_by, r.approved_at, r.rejected_by, r.rejected_at,
-         ISNULL(r.is_urgent, 0) AS is_urgent, r.created_at
+         ISNULL(r.is_urgent, 0) AS is_urgent, r.created_at,
+         r.security_user_id, su.username AS security_username, r.security_signature
   FROM outing_requests r
-  INNER JOIN labour_profiles lp ON r.labour_id = lp.labour_id
-  INNER JOIN departments d ON lp.department_id = d.department_id
+  LEFT JOIN labour_profiles lp ON r.labour_id = lp.labour_id
+  LEFT JOIN security_profiles sp ON r.security_id = sp.security_id
+  LEFT JOIN departments d ON (lp.department_id = d.department_id OR sp.department_id = d.department_id)
   INNER JOIN hod_profiles h ON r.hod_id = h.hod_id
+  LEFT JOIN users su ON r.security_user_id = su.user_id
 `;
 
 const getLabourByUserId = async (userId) => {
@@ -64,13 +75,75 @@ const recordApproval = async (requestId, previousStatus, newStatus, changedBy, r
 };
 
 const createOutingRequest = async (data, actor) => {
-  const labour = await getLabourByUserId(actor.id);
-  if (!labour) throw new AppError("Labour profile not found for this user", 404);
-  if (labour.status !== "Active") {
-    throw new AppError("Inactive labour cannot create outing requests", 403);
+  const role = String(actor.role).trim().toUpperCase();
+  let labour = null;
+  let securityProfile = null;
+  let isSecurityOuting = false;
+  let securityUserId = null;
+  let securitySignature = null;
+
+  if (role === "SECURITY" || role === "ADMIN") {
+    if (!data.employeeCode) {
+      throw new AppError("employeeCode is required", 400);
+    }
+    const pool = getPool();
+    const result = await pool
+      .request()
+      .input("employee_id", sql.VarChar, data.employeeCode.trim())
+      .query(`SELECT lp.labour_id, lp.labour_name, lp.employee_id, lp.department_id, lp.assigned_hod_id, lp.status
+              FROM labour_profiles lp WHERE lp.employee_id = @employee_id`);
+    labour = result.recordset[0];
+    
+    if (!labour) {
+      const secResult = await pool
+        .request()
+        .input("security_code", sql.VarChar, data.employeeCode.trim())
+        .query(`SELECT sp.security_id, sp.security_name, sp.security_code, sp.department_id, sp.assigned_hod_id
+                FROM security_profiles sp WHERE sp.security_code = @security_code`);
+      securityProfile = secResult.recordset[0];
+      if (!securityProfile) {
+        throw new AppError("Profile not found for the given Code/ID", 404);
+      }
+      isSecurityOuting = true;
+    }
+
+    if (data.assignedHodId) {
+      const newHodId = parseInt(data.assignedHodId, 10);
+      if (isSecurityOuting) {
+        if (securityProfile.assigned_hod_id !== newHodId) {
+          await pool
+            .request()
+            .input("assigned_hod_id", sql.Int, newHodId)
+            .input("security_id", sql.Int, securityProfile.security_id)
+            .query(`UPDATE security_profiles SET assigned_hod_id = @assigned_hod_id WHERE security_id = @security_id`);
+          securityProfile.assigned_hod_id = newHodId;
+        }
+      } else {
+        if (labour.assigned_hod_id !== newHodId) {
+          await pool
+            .request()
+            .input("assigned_hod_id", sql.Int, newHodId)
+            .input("labour_id", sql.Int, labour.labour_id)
+            .query(`UPDATE labour_profiles SET assigned_hod_id = @assigned_hod_id WHERE labour_id = @labour_id`);
+          labour.assigned_hod_id = newHodId;
+        }
+      }
+    }
+    
+    securityUserId = actor.id;
+    securitySignature = data.securitySignature || null;
+  } else {
+    labour = await getLabourByUserId(actor.id);
+    if (!labour) throw new AppError("Labour profile not found for this user", 404);
   }
-  if (!labour.assigned_hod_id) {
-    throw new AppError("No HOD assigned. Ask admin to assign a HOD first.", 400);
+
+  if (!isSecurityOuting && labour.status !== "Active") {
+    throw new AppError("Inactive labour cannot have outing requests", 403);
+  }
+
+  const activeHodId = isSecurityOuting ? securityProfile.assigned_hod_id : labour.assigned_hod_id;
+  if (!activeHodId) {
+    throw new AppError("No HOD assigned. Assign HOD first.", 400);
   }
 
   const { requestDate, outTime, returnTime, reason, isUrgent } = data;
@@ -82,42 +155,34 @@ const createOutingRequest = async (data, actor) => {
 
   const pool = getPool();
   let result;
-  try {
-    result = await pool
-      .request()
-      .input("labour_id", sql.Int, labour.labour_id)
-      .input("hod_id", sql.Int, labour.assigned_hod_id)
-      .input("request_date", sql.Date, requestDate)
-      .input("out_time", sql.VarChar, outTime)
-      .input("return_time", sql.VarChar, returnTime || null)
-      .input("reason", sql.VarChar(sql.MAX), reason)
-      .input("is_urgent", sql.Bit, urgent ? 1 : 0)
-      .query(
-        `INSERT INTO outing_requests
-         (labour_id, hod_id, request_date, out_time, return_time, reason, status, is_urgent)
-         OUTPUT INSERTED.request_id
-         VALUES (@labour_id, @hod_id, @request_date, @out_time, @return_time, @reason, 'Pending', @is_urgent)`
-      );
-  } catch (err) {
-    if (!String(err.message).includes("is_urgent")) throw err;
-    result = await pool
-      .request()
-      .input("labour_id", sql.Int, labour.labour_id)
-      .input("hod_id", sql.Int, labour.assigned_hod_id)
-      .input("request_date", sql.Date, requestDate)
-      .input("out_time", sql.VarChar, outTime)
-      .input("return_time", sql.VarChar, returnTime || null)
-      .input("reason", sql.VarChar(sql.MAX), reason)
-      .query(
-        `INSERT INTO outing_requests
-         (labour_id, hod_id, request_date, out_time, return_time, reason, status)
-         OUTPUT INSERTED.request_id
-         VALUES (@labour_id, @hod_id, @request_date, @out_time, @return_time, @reason, 'Pending')`
-      );
-  }
+  
+  result = await pool
+    .request()
+    .input("labour_id", sql.Int, isSecurityOuting ? null : labour.labour_id)
+    .input("security_id", sql.Int, isSecurityOuting ? securityProfile.security_id : null)
+    .input("hod_id", sql.Int, activeHodId)
+    .input("request_date", sql.Date, requestDate)
+    .input("out_time", sql.VarChar, outTime)
+    .input("return_time", sql.VarChar, returnTime || null)
+    .input("reason", sql.VarChar(sql.MAX), reason)
+    .input("is_urgent", sql.Bit, urgent ? 1 : 0)
+    .input("security_user_id", sql.Int, securityUserId)
+    .input("security_signature", sql.VarChar(sql.MAX), securitySignature)
+    .query(
+      `INSERT INTO outing_requests
+       (labour_id, security_id, hod_id, request_date, out_time, return_time, reason, status, is_urgent, security_user_id, security_signature)
+       OUTPUT INSERTED.request_id
+       VALUES (@labour_id, @security_id, @hod_id, @request_date, @out_time, @return_time, @reason, 'Pending', @is_urgent, @security_user_id, @security_signature)`
+    );
 
   const requestId = result.recordset[0].request_id;
-  await recordApproval(requestId, null, "Pending", actor.id, "Request created");
+  let creatorText = "Request created";
+  if (role === "SECURITY") {
+    creatorText = "Request created by Security";
+  } else if (role === "ADMIN") {
+    creatorText = "Request created by Admin";
+  }
+  await recordApproval(requestId, null, "Pending", actor.id, creatorText);
   return getOutingRequestById(requestId);
 };
 
@@ -163,6 +228,14 @@ const getOutingRequests = async (actor) => {
     return result.recordset.map(mapRequest);
   }
 
+  if (role === "SECURITY") {
+    const result = await pool
+      .request()
+      .input("security_user_id", sql.Int, actor.id)
+      .query(`${baseSelect} WHERE r.security_user_id = @security_user_id ORDER BY r.created_at DESC`);
+    return result.recordset.map(mapRequest);
+  }
+
   return [];
 };
 
@@ -181,6 +254,11 @@ const assertCanView = async (actor, requestId) => {
   if (role === "LABOUR") {
     const labour = await getLabourByUserId(actor.id);
     if (labour && Number(labour.labour_id) === Number(request.labourID)) return request;
+    throw new AppError("Not authorized to view this request", 403);
+  }
+
+  if (role === "SECURITY") {
+    if (Number(request.securityUserID) === Number(actor.id)) return request;
     throw new AppError("Not authorized to view this request", 403);
   }
 

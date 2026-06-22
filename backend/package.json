@@ -7,6 +7,7 @@
     "dev": "nodemon server.js",
     "check:db": "node scripts/check-db.js",
     "test:api": "node scripts/test-api.js",
+    "test:admin-ip": "node scripts/test-admin-ip-restriction.js",
     "test:departments": "node scripts/test-departments.js",
     "test:labours": "node scripts/test-labours.js",
     "test:phase4-5": "node scripts/test-phase4-5.js",
