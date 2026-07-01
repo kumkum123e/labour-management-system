@@ -98,7 +98,7 @@ export default function HODs() {
                           <tr className="border-b text-left text-slate-500">
                             <th className="py-2">Employee ID</th>
                             <th>Name</th>
-                            <th>Labour Mobile</th>
+                            <th>Employee Mobile</th>
                             <th>Contractor</th>
                             <th>Status</th>
                           </tr>
@@ -145,7 +145,7 @@ export default function HODs() {
               className="form-input"
               value={editForm.mobileNumber}
               onChange={(e) => setEditForm({ ...editForm, mobileNumber: e.target.value })}
-              placeholder="Used for urgent outing phone alerts"
+              placeholder="Used for urgent outing phone calls"
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">

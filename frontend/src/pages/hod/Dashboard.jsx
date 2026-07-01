@@ -8,6 +8,7 @@ import Alert from "../../components/common/Alert";
 import { getHodDashboard } from "../../services/dashboardService";
 import { getNotifications, markNotificationRead } from "../../services/notificationService";
 import { getOutingRequests, approveRequest, rejectRequest } from "../../services/requestService";
+import { formatTime } from "../../utils/timeFormat";
 
 export default function HodDashboard() {
   const qc = useQueryClient();
@@ -87,7 +88,7 @@ export default function HodDashboard() {
                     <span className="rounded bg-amber-100 px-2.5 py-0.5 text-xs text-amber-800 font-medium">{r.status}</span>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{r.departmentName} · {new Date(r.requestDate).toLocaleDateString()} · Out: {r.outTime} · Return: {r.returnTime || "—"}</p>
+                <p className="mt-1 text-xs text-slate-500">{r.departmentName} · {new Date(r.requestDate).toLocaleDateString()} · Out: {formatTime(r.outTime)} · Return: {formatTime(r.returnTime) || "—"}</p>
                 <p className="mt-2 text-sm text-slate-700"><strong>Reason:</strong> {r.reason}</p>
                 <textarea
                   className="form-input mt-3 text-sm bg-white"

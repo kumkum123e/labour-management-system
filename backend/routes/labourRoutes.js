@@ -8,9 +8,11 @@ const {
   getLabourByCode,
   updateLabour,
   deactivateLabour,
+  bulkCreateLabours,
+  bulkUploadPhotos,
 } = require("../controllers/labourController");
 const { uploadDocument, listDocuments } = require("../controllers/uploadController");
-const { upload } = require("../config/multer");
+const { upload, uploadZip } = require("../config/multer");
 const {
   handleValidation,
   labourIdParam,
@@ -27,6 +29,21 @@ router.post(
   createLabourRules,
   handleValidation,
   createLabour
+);
+
+router.post(
+  "/bulk",
+  protect,
+  authorize("ADMIN"),
+  bulkCreateLabours
+);
+
+router.post(
+  "/bulk-photos",
+  protect,
+  authorize("ADMIN"),
+  uploadZip.single("zipFile"),
+  bulkUploadPhotos
 );
 
 router.get("/", protect, authorize("ADMIN", "HOD", "LABOUR"), getAllLabours);

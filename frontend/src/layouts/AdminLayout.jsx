@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const links = [
   { to: "/admin/dashboard", label: "Dashboard", icon: FiGrid, end: true },
-  { to: "/admin/labour", label: "Add Labour", icon: FiUserPlus },
+  { to: "/admin/labour", label: "Add Employee", icon: FiUserPlus },
   { to: "/admin/departments", label: "Departments", icon: FiBriefcase },
   { to: "/admin/hods", label: "HODs", icon: FiUsers },
   { to: "/admin/security-accounts", label: "Security Accounts", icon: FiUsers },

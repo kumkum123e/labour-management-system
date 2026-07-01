@@ -27,7 +27,7 @@ export default function LabourLogin() {
       const userRole = String(data.user?.role || "").toUpperCase();
       if (userRole !== "LABOUR" && userRole !== "SECURITY") {
         logout();
-        setError("Access Denied: Only Labour or Security accounts can log in here.");
+        setError("Access Denied: Only Employee or Security accounts can log in here.");
         return;
       }
       navigate(getRoleDashboardPath(data.user.role));
@@ -43,7 +43,7 @@ export default function LabourLogin() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 shadow-md">
             <FaHardHat className="h-8 w-8" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">Labour Portal</h1>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">Employee Portal</h1>
           <p className="mt-1 text-center text-sm text-slate-500">
             Sign in with your Employee ID to view outings and notifications
           </p>

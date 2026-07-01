@@ -9,6 +9,7 @@ const {
   rejectOutingRequest,
   getAdminMonitor,
   urgentCallToLabour,
+  recordOutingReturn,
 } = require("../controllers/outingController");
 const {
   handleValidation,
@@ -72,6 +73,15 @@ router.post(
   requestIdParam,
   handleValidation,
   urgentCallToLabour
+);
+
+router.patch(
+  "/:id/return",
+  protect,
+  authorize("SECURITY", "ADMIN"),
+  requestIdParam,
+  handleValidation,
+  recordOutingReturn
 );
 
 module.exports = router;

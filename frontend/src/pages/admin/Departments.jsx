@@ -33,7 +33,7 @@ export default function Departments() {
     setMessage({ type: "", text: "" });
     try {
       await addDepartment({ departmentName: form.departmentName, description: form.description });
-      setMessage({ type: "success", text: `Department "${form.departmentName}" created — select it in Add Labour` });
+      setMessage({ type: "success", text: `Department "${form.departmentName}" created — select it in Add Employee` });
       reset({ departmentName: "", description: "" });
       qc.invalidateQueries({ queryKey: ["departments-admin"] });
       qc.invalidateQueries({ queryKey: ["departments"] });
@@ -216,7 +216,7 @@ export default function Departments() {
                     </div>
                   )}
                   <p className="mt-3 text-xs text-slate-400">
-                    HODs are assigned via Add Labour → select this department → select or create HOD.
+                    HODs are assigned via Add Employee → select this department → select or create HOD.
                   </p>
                 </>
               )}

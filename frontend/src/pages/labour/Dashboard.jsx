@@ -15,7 +15,7 @@ export default function LabourDashboard() {
 
   return (
     <div>
-      <PageHeader title="Labour Dashboard" subtitle="Your outing request summary" />
+      <PageHeader title="Employee Dashboard" subtitle="Your outing request summary" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Requests" value={s.myRequests} icon={FiList} />
         <StatCard label="Pending" value={s.pending} icon={FiClock} accent="bg-amber-50 text-amber-700" />

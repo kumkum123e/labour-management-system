@@ -38,7 +38,7 @@ const createOutingRequest = async (req, res) => {
         userId: hodUserId,
         title: isUrgent ? "URGENT: Outing Request" : "New Outing Request",
         message: isUrgent
-          ? `${data.labourName} submitted an URGENT outing request for ${data.requestDate}. Phone alert sent.`
+          ? `${data.labourName} submitted an URGENT outing request for ${data.requestDate}. Phone call initiated.`
           : `${data.labourName} submitted an outing request for ${data.requestDate}`,
         type: isUrgent ? "urgent" : "outing",
       });
@@ -185,6 +185,24 @@ const urgentCallToLabour = async (req, res) => {
   }
 };
 
+const recordOutingReturn = async (req, res) => {
+  if (!isDbConnected()) return dbUnavailable(res);
+  try {
+    const requestId = parseInt(req.params.id, 10);
+    const data = await outingService.recordReturn(requestId, req.user, req.body);
+    await logActivity({
+      userId: req.user.id,
+      action: `Security recorded labour return status as ${req.body.returnStatus}`,
+      entity: "outing_requests",
+      entityId: requestId,
+      ipAddress: getClientIp(req),
+    });
+    res.json({ success: true, message: `Return status recorded as '${req.body.returnStatus}'`, data });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 module.exports = {
   createOutingRequest,
   getOutingRequests,
@@ -193,4 +211,5 @@ module.exports = {
   rejectOutingRequest,
   getAdminMonitor,
   urgentCallToLabour,
+  recordOutingReturn,
 };

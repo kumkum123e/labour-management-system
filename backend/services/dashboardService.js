@@ -27,8 +27,18 @@ const getAdminDashboard = async () => {
 };
 
 const getHodDashboard = async (userId) => {
-  const hod = await hodService.getHodByUserId(userId);
-  if (!hod) {
+  const pool = getPool();
+  const profilesResult = await pool
+    .request()
+    .input("user_id", sql.Int, userId)
+    .query(
+      `SELECT h.hod_id, h.department_id, d.department_name
+       FROM hod_profiles h
+       INNER JOIN departments d ON h.department_id = d.department_id
+       WHERE h.user_id = @user_id`
+    );
+
+  if (profilesResult.recordset.length === 0) {
     return {
       departmentName: null,
       departmentLabourCount: 0,
@@ -38,32 +48,37 @@ const getHodDashboard = async (userId) => {
     };
   }
 
-  const pool = getPool();
-  const [labourCount, outings] = await Promise.all([
+  const departmentNames = profilesResult.recordset.map(r => r.department_name).join(", ");
+  
+  const [labourCountRes, outingsRes] = await Promise.all([
     pool
       .request()
-      .input("department_id", sql.Int, hod.departmentID)
+      .input("user_id", sql.Int, userId)
       .query(
-        "SELECT COUNT(*) AS c FROM labour_profiles WHERE department_id = @department_id AND status = 'Active'"
+        `SELECT COUNT(*) AS c 
+         FROM labour_profiles 
+         WHERE department_id IN (SELECT department_id FROM hod_profiles WHERE user_id = @user_id) 
+           AND status = 'Active'`
       ),
     pool
       .request()
-      .input("hod_id", sql.Int, hod.hodID)
+      .input("user_id", sql.Int, userId)
       .query(
         `SELECT
            SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
            SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) AS approved,
            SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) AS rejected
-         FROM outing_requests WHERE hod_id = @hod_id`
+         FROM outing_requests 
+         WHERE hod_id IN (SELECT hod_id FROM hod_profiles WHERE user_id = @user_id)`
       ),
   ]);
 
   return {
-    departmentName: hod.departmentName,
-    departmentLabourCount: labourCount.recordset[0].c,
-    pendingRequests: outings.recordset[0].pending || 0,
-    approvedRequests: outings.recordset[0].approved || 0,
-    rejectedRequests: outings.recordset[0].rejected || 0,
+    departmentName: departmentNames,
+    departmentLabourCount: labourCountRes.recordset[0].c || 0,
+    pendingRequests: outingsRes.recordset[0].pending || 0,
+    approvedRequests: outingsRes.recordset[0].approved || 0,
+    rejectedRequests: outingsRes.recordset[0].rejected || 0,
   };
 };
 

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageHeader from "../../components/common/PageHeader";
 import Alert from "../../components/common/Alert";
 import { getOutingRequests, approveRequest, rejectRequest } from "../../services/requestService";
+import { formatTime } from "../../utils/timeFormat";
 
 export default function PendingRequests() {
   const qc = useQueryClient();
@@ -54,7 +55,7 @@ export default function PendingRequests() {
                   <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{r.status}</span>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-slate-600">{r.departmentName} · {r.requestDate} · Out: {r.outTime} · Return: {r.returnTime || "—"}</p>
+              <p className="mt-1 text-sm text-slate-600">{r.departmentName} · {r.requestDate} · Out: {formatTime(r.outTime)} · Return: {formatTime(r.returnTime) || "—"}</p>
               <p className="mt-2 text-sm"><strong>Reason:</strong> {r.reason}</p>
               <textarea
                 className="form-input mt-3"

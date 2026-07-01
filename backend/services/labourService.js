@@ -3,6 +3,11 @@ const { sql, getPool } = require("../config/db");
 const departmentService = require("./departmentService");
 const hodService = require("./hodService");
 const { AppError } = require("./departmentService");
+const fs = require("fs");
+const path = require("path");
+const http = require("http");
+const https = require("https");
+const AdmZip = require("adm-zip");
 
 const LABOUR_ROLE_ID = 3;
 
@@ -193,6 +198,17 @@ const createLabourProfile = async (data) => {
     await hodService.updateHodMobile(hodIdNum, data.hodMobile);
   }
 
+  if (data.photoUrl) {
+    try {
+      const downloadedFile = await downloadPhoto(data.photoUrl, labourId);
+      if (downloadedFile) {
+        await saveDownloadedPhoto(labourId, downloadedFile);
+      }
+    } catch (err) {
+      console.error(`Failed to download photo for labour ${labourId}:`, err.message);
+    }
+  }
+
   return getLabourById(labourId);
 };
 
@@ -338,6 +354,17 @@ const updateLabourProfile = async (id, data, actor) => {
     await hodService.updateHodMobile(hodId, data.hodMobile);
   }
 
+  if (data.photoUrl) {
+    try {
+      const downloadedFile = await downloadPhoto(data.photoUrl, id);
+      if (downloadedFile) {
+        await saveDownloadedPhoto(id, downloadedFile);
+      }
+    } catch (err) {
+      console.error(`Failed to download photo for labour ${id}:`, err.message);
+    }
+  }
+
   return getLabourById(id);
 };
 
@@ -365,6 +392,252 @@ const getLabourByCode = async (code) => {
   return mapLabour(result.recordset[0]);
 };
 
+const bulkCreateLabourProfiles = async (laboursArray) => {
+  const results = [];
+  const errors = [];
+
+  for (const item of laboursArray) {
+    try {
+      const res = await createLabourProfile(item);
+      results.push(res);
+    } catch (e) {
+      errors.push({
+        employeeCode: item.employeeCode || "N/A",
+        labourName: item.labourName || "N/A",
+        error: e.message || "Unknown error",
+      });
+    }
+  }
+
+  return {
+    successCount: results.length,
+    errorCount: errors.length,
+    results,
+    errors,
+  };
+};
+
+const downloadPhoto = async (urlStr, labourId, redirectCount = 0) => {
+  if (!urlStr) return null;
+  let cleanUrl = urlStr.trim();
+
+  // Auto-convert Google Drive sharing links to direct download links
+  if (cleanUrl.includes("drive.google.com/file/d/")) {
+    const parts = cleanUrl.split("drive.google.com/file/d/");
+    if (parts[1]) {
+      const fileId = parts[1].split("/")[0].split("?")[0].split("&")[0];
+      cleanUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+  } else if (cleanUrl.includes("drive.google.com/open?id=")) {
+    const parts = cleanUrl.split("drive.google.com/open?id=");
+    if (parts[1]) {
+      const fileId = parts[1].split("&")[0];
+      cleanUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+  }
+
+  if (!cleanUrl.startsWith("http")) return null;
+
+  if (redirectCount > 5) {
+    throw new Error("Too many redirects");
+  }
+
+  return new Promise((resolve, reject) => {
+    try {
+      const parsedUrl = new URL(cleanUrl);
+      const client = parsedUrl.protocol === "https:" ? https : http;
+
+      const options = {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        rejectUnauthorized: false
+      };
+
+      client.get(cleanUrl, options, (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          const redirectUrl = new URL(response.headers.location, cleanUrl).toString();
+          return resolve(downloadPhoto(redirectUrl, labourId, redirectCount + 1));
+        }
+
+        if (response.statusCode !== 200) {
+          return reject(new Error(`Failed to download photo: Status Code ${response.statusCode}`));
+        }
+
+        const contentType = response.headers["content-type"];
+        if (contentType && !contentType.startsWith("image/")) {
+          return reject(new Error(`Invalid content-type: ${contentType}`));
+        }
+
+        let ext = ".jpg";
+        if (contentType) {
+          const parts = contentType.split("/");
+          if (parts[1]) ext = `.${parts[1].split("+")[0]}`;
+        } else {
+          const extname = path.extname(parsedUrl.pathname);
+          if (extname) ext = extname;
+        }
+
+        const filename = `${Date.now()}_downloaded_${labourId}${ext}`;
+        const destPath = path.join(__dirname, "../uploads", filename);
+
+        const fileStream = fs.createWriteStream(destPath);
+        response.pipe(fileStream);
+
+        fileStream.on("finish", () => {
+          fileStream.close();
+          resolve({
+            filename,
+            originalname: path.basename(parsedUrl.pathname) || "photo.jpg",
+            path: destPath,
+          });
+        });
+
+        fileStream.on("error", (err) => {
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+      }).on("error", reject);
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+const saveDownloadedPhoto = async (labourId, file) => {
+  const pool = getPool();
+  const relativePath = `uploads/${file.filename}`;
+
+  await pool
+    .request()
+    .input("labour_id", sql.Int, labourId)
+    .input("document_type", sql.VarChar, "photo")
+    .input("file_name", sql.NVarChar, file.originalname)
+    .input("file_path", sql.NVarChar, relativePath)
+    .input("uploaded_by", sql.Int, null)
+    .query(
+      `INSERT INTO labour_documents (labour_id, document_type, file_name, file_path, uploaded_by)
+       VALUES (@labour_id, @document_type, @file_name, @file_path, @uploaded_by)`
+    );
+
+  await pool
+    .request()
+    .input("labour_id", sql.Int, labourId)
+    .input("photo_url", sql.VarChar, relativePath)
+    .query("UPDATE labour_profiles SET photo_url = @photo_url WHERE labour_id = @labour_id");
+};
+
+const bulkUploadPhotosService = async (zipFilePath, uploadedBy) => {
+  const zip = new AdmZip(zipFilePath);
+  const zipEntries = zip.getEntries();
+
+  let successCount = 0;
+  let errorCount = 0;
+  const results = [];
+  const errors = [];
+
+  const pool = getPool();
+
+  for (const entry of zipEntries) {
+    if (entry.isDirectory) continue;
+
+    const entryName = entry.entryName;
+    const baseName = path.basename(entryName);
+    
+    // Ignore hidden or meta files
+    if (baseName.startsWith(".") || baseName.startsWith("__")) continue;
+
+    // Check if file is an image
+    const ext = path.extname(baseName).toLowerCase();
+    if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
+      errors.push({
+        fileName: baseName,
+        error: "Invalid file type. Only JPG, PNG, WEBP are supported."
+      });
+      errorCount++;
+      continue;
+    }
+
+    // Extract employeeCode (filename without extension)
+    const employeeCode = path.parse(baseName).name.trim();
+
+    try {
+      // Find employee by employeeCode
+      const queryResult = await pool
+        .request()
+        .input("employee_code", sql.VarChar, employeeCode)
+        .query("SELECT labour_id, labour_name FROM labour_profiles WHERE LOWER(employee_id) = LOWER(@employee_code)");
+
+      if (queryResult.recordset.length === 0) {
+        errors.push({
+          fileName: baseName,
+          error: `No employee found with ID: ${employeeCode}`
+        });
+        errorCount++;
+        continue;
+      }
+
+      const labour = queryResult.recordset[0];
+      const labourId = labour.labour_id;
+
+      // Extract image content
+      const buffer = entry.getData();
+      const filename = `${Date.now()}_zip_${labourId}${ext}`;
+      const destPath = path.join(__dirname, "../uploads", filename);
+
+      // Save buffer to file
+      fs.writeFileSync(destPath, buffer);
+
+      const relativePath = `uploads/${filename}`;
+
+      // Insert into labour_documents
+      await pool
+        .request()
+        .input("labour_id", sql.Int, labourId)
+        .input("document_type", sql.VarChar, "photo")
+        .input("file_name", sql.NVarChar, baseName)
+        .input("file_path", sql.NVarChar, relativePath)
+        .input("uploaded_by", sql.Int, uploadedBy)
+        .query(
+          `INSERT INTO labour_documents (labour_id, document_type, file_name, file_path, uploaded_by)
+           VALUES (@labour_id, @document_type, @file_name, @file_path, @uploaded_by)`
+        );
+
+      // Update labour_profiles
+      await pool
+        .request()
+        .input("labour_id", sql.Int, labourId)
+        .input("photo_url", sql.VarChar, relativePath)
+        .query("UPDATE labour_profiles SET photo_url = @photo_url WHERE labour_id = @labour_id");
+
+      results.push({
+        employeeCode,
+        labourName: labour.labour_name,
+        fileName: baseName,
+      });
+      successCount++;
+    } catch (err) {
+      errors.push({
+        fileName: baseName,
+        error: err.message || "Failed to process photo"
+      });
+      errorCount++;
+    }
+  }
+
+  // Delete uploaded zip file after processing
+  try {
+    fs.unlinkSync(zipFilePath);
+  } catch (_) {}
+
+  return {
+    successCount,
+    errorCount,
+    results,
+    errors,
+  };
+};
+
 module.exports = {
   createLabourProfile,
   getAllLabourProfiles,
@@ -374,5 +647,7 @@ module.exports = {
   updateLabourProfile,
   deactivateLabourProfile,
   mapLabour,
+  bulkCreateLabourProfiles,
+  bulkUploadPhotosService,
 };
 

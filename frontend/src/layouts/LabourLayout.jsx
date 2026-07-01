@@ -34,7 +34,7 @@ export default function LabourLayout() {
       >
         <div className="flex items-center justify-between border-b border-slate-700 p-5">
           <div>
-            <h2 className="text-lg font-semibold text-white">Labour Panel</h2>
+            <h2 className="text-lg font-semibold text-white">Employee Panel</h2>
             <p className="mt-1 text-xs text-slate-400">{user.username}</p>
           </div>
           {/* Mobile close button */}
@@ -72,7 +72,7 @@ export default function LabourLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile Header Bar */}
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 md:hidden">
-          <h2 className="text-lg font-bold text-slate-900">Labour Panel</h2>
+          <h2 className="text-lg font-bold text-slate-900">Employee Panel</h2>
           <button 
             type="button" 
             className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"

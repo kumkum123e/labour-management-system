@@ -25,7 +25,7 @@ export default function LabourListSection() {
   const printLabour = (labour) => {
     const printWindow = window.open("", "_blank", "width=850,height=700");
     if (!printWindow) {
-      alert("Please allow popups to print labour profiles.");
+      alert("Please allow popups to print employee profiles.");
       return;
     }
 
@@ -160,8 +160,8 @@ export default function LabourListSection() {
           <div class="profile-card">
             <div class="header">
               <div class="header-title">
-                <h1>Labour Profile Card</h1>
-                <p>Labour Management System &bull; Official Record</p>
+                <h1>Employee Profile Card</h1>
+                <p>Frigerio Conserva Allana Pvt Ltd &bull; Official Record</p>
               </div>
               <div class="badge">${labour.status}</div>
             </div>
@@ -194,7 +194,7 @@ export default function LabourListSection() {
                 <div class="info-label">Assigned HOD</div>
                 <div class="info-value">${labour.hodName || "Not Assigned"}</div>
                 
-                <div class="info-label">Labour Mobile</div>
+                <div class="info-label">Employee Mobile</div>
                 <div class="info-value">${labour.phone || "-"}</div>
                 
                 <div class="info-label">Joining Date</div>
@@ -289,7 +289,7 @@ export default function LabourListSection() {
 
   return (
     <div className="mt-10">
-      <h2 className="mb-4 text-xl font-bold text-slate-900">All Labour Profiles</h2>
+      <h2 className="mb-4 text-xl font-bold text-slate-900">All Employee Profiles</h2>
       {message && <p className="mb-3 text-sm text-emerald-700">{message}</p>}
       {isLoading ? (
         <p className="text-slate-500">Loading labour list...</p>

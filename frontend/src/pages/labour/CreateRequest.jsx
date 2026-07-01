@@ -7,6 +7,15 @@ import { createOutingRequest } from "../../services/requestService";
 import { getLabours } from "../../services/labourService";
 import { useAuth } from "../../hooks/useAuth";
 
+const getFormattedCurrentTime24 = () => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const hoursStr = hours < 10 ? `0${hours}` : hours;
+  const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
+  return `${hoursStr}:${minutesStr}`;
+};
+
 export default function CreateRequest() {
   const { user } = useAuth();
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -16,7 +25,7 @@ export default function CreateRequest() {
   const { register, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       requestDate: new Date().toISOString().slice(0, 10),
-      outTime: "14:00",
+      outTime: getFormattedCurrentTime24(),
       returnTime: "18:00",
       reason: "",
       isUrgent: false,
@@ -36,10 +45,10 @@ export default function CreateRequest() {
       setMessage({
         type: "success",
         text: form.isUrgent
-          ? "URGENT request submitted — your HOD will receive a phone alert"
+          ? "URGENT request submitted — your HOD will receive a phone call"
           : "Request submitted to your HOD for approval",
       });
-      reset({ requestDate: form.requestDate, outTime: form.outTime, returnTime: form.returnTime, reason: "", isUrgent: false });
+      reset({ requestDate: form.requestDate, outTime: getFormattedCurrentTime24(), returnTime: form.returnTime, reason: "", isUrgent: false });
     } catch (err) {
       setMessage({ type: "error", text: err.response?.data?.message || "Submit failed" });
     }
@@ -77,7 +86,7 @@ export default function CreateRequest() {
             <span className="block text-xs text-red-600">HOD will receive an immediate phone call for approval</span>
           </span>
         </label>
-        {isUrgent && <p className="text-xs text-red-600">Phone alert will be sent to your assigned HOD&apos;s mobile number.</p>}
+        {isUrgent && <p className="text-xs text-red-600">Phone call will be made to your assigned HOD&apos;s mobile number.</p>}
         <button type="submit" className="btn-primary">Submit Request</button>
       </form>
     </div>

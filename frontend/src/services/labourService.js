@@ -3,6 +3,7 @@ import api from "./api";
 export const getLabours = () => api.get("/api/labours").then((r) => r.data);
 export const getLabour = (id) => api.get(`/api/labours/${id}`).then((r) => r.data);
 export const createLabour = (payload) => api.post("/api/labours", payload).then((r) => r.data);
+export const bulkCreateLabours = (payload) => api.post("/api/labours/bulk", payload).then((r) => r.data);
 export const updateLabour = (id, payload) => api.put(`/api/labours/${id}`, payload).then((r) => r.data);
 export const deactivateLabour = (id) => api.patch(`/api/labours/${id}/deactivate`).then((r) => r.data);
 export const assignHodToLabour = (labourId, hodId) =>
@@ -16,4 +17,12 @@ export const uploadDocument = (labourId, file, documentType) => {
       headers: { "Content-Type": "multipart/form-data" },
     })
     .then((r) => r.data);
+};
+
+export const bulkUploadPhotos = (file) => {
+  const form = new FormData();
+  form.append("zipFile", file);
+  return api.post("/api/labours/bulk-photos", form, {
+    headers: { "Content-Type": "multipart/form-data" }
+  }).then((r) => r.data);
 };

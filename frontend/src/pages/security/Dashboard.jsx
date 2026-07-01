@@ -4,6 +4,18 @@ import Alert from "../../components/common/Alert";
 import api from "../../services/api";
 import { FiSearch, FiTrash2, FiFileText } from "react-icons/fi";
 
+const getFormattedCurrentTime = () => {
+  const now = new Date();
+  let hours = now.getHours();
+  const minutes = now.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
+  const hoursStr = hours < 10 ? `0${hours}` : hours;
+  return `${hoursStr}:${minutesStr} ${ampm}`;
+};
+
 export default function SecurityDashboard() {
   const [employeeCode, setEmployeeCode] = useState("");
   const [labour, setLabour] = useState(null);
@@ -12,7 +24,7 @@ export default function SecurityDashboard() {
 
   // Form fields
   const [requestDate, setRequestDate] = useState(new Date().toISOString().slice(0, 10));
-  const [outTime, setOutTime] = useState("");
+  const [outTime, setOutTime] = useState(getFormattedCurrentTime());
   const [returnTime, setReturnTime] = useState("");
   const [reason, setReason] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -73,7 +85,7 @@ export default function SecurityDashboard() {
     setDepartmentHods([]);
     setSelectedHodId("");
     setRequestDate(new Date().toISOString().slice(0, 10));
-    setOutTime("");
+    setOutTime(getFormattedCurrentTime());
     setReturnTime("");
     setReason("");
     setIsUrgent(false);
@@ -100,10 +112,7 @@ export default function SecurityDashboard() {
       return;
     }
 
-    if (!signature) {
-      setMessage({ type: "error", text: "Security signature is required. Please upload signature." });
-      return;
-    }
+
 
     setIsSubmitting(true);
     try {
@@ -132,7 +141,7 @@ export default function SecurityDashboard() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <PageHeader title="Create Outing Request" subtitle="Security Portal — create outing requests on behalf of labours" />
+      <PageHeader title="Create Outing Request" subtitle="Security Portal — create outing requests on behalf of employees" />
       <Alert type={message.type} message={message.text} onClose={() => setMessage({ type: "", text: "" })} />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -157,7 +166,7 @@ export default function SecurityDashboard() {
                   }}
                   className="rounded-full border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
                 />
-                Labour (Emp ID)
+                Employee ID
               </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700">
                 <input
@@ -206,7 +215,7 @@ export default function SecurityDashboard() {
                 <div className="mt-4 border-t border-slate-100 pt-3 text-sm space-y-2 text-slate-700">
                   <div>
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-                      {searchType === "LABOUR" ? "Labour Name" : "Security Name"}
+                      {searchType === "LABOUR" ? "Employee Name" : "Security Name"}
                     </span>
                     <strong className="text-slate-900">{labour.labourName}</strong>
                   </div>
@@ -300,7 +309,7 @@ export default function SecurityDashboard() {
                   checked={isUrgent}
                   onChange={(e) => setIsUrgent(e.target.checked)}
                 />
-                <span className="text-sm font-medium text-slate-700">Mark as URGENT (Alerts HOD)</span>
+                <span className="text-sm font-medium text-slate-700">Mark as URGENT (Calls HOD)</span>
               </label>
             </div>
           </div>
@@ -321,7 +330,7 @@ export default function SecurityDashboard() {
 
           {/* Signature Upload */}
           <div>
-            <label className="text-sm font-medium block mb-2">Security Signature *</label>
+            <label className="text-sm font-medium block mb-2">Security Signature (Optional)</label>
             <div className="space-y-3">
               <input
                 type="file"

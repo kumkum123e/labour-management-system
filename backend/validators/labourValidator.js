@@ -36,6 +36,7 @@ const createLabourRules = [
   body("joiningDate").optional().isISO8601().withMessage("Invalid joining date"),
   body("contractorName").optional().trim(),
   body("password").optional().trim().isLength({ min: 6 }),
+  body("photoUrl").optional().trim(),
 ];
 
 const updateLabourRules = [
@@ -50,6 +51,7 @@ const updateLabourRules = [
   body("address").optional().trim().isLength({ max: 255 }),
   body("joiningDate").optional().isISO8601(),
   body("contractorName").optional().trim(),
+  body("photoUrl").optional().trim(),
 ];
 
 module.exports = {

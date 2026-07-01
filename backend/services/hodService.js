@@ -55,37 +55,48 @@ const findOrCreateHod = async (hodName, departmentId, mobileNumber = null) => {
 
   const pool = getPool();
   const baseUsername = hodName.trim().toLowerCase().replace(/\s+/g, "_");
-  let username = baseUsername;
-  let counter = 1;
-  let userExists = true;
+  
+  // Check if an HOD user already exists with this username
+  const checkUser = await pool
+    .request()
+    .input("username", sql.VarChar, baseUsername)
+    .query("SELECT user_id, role_id FROM users WHERE LOWER(username) = LOWER(@username)");
 
-  while (userExists) {
-    const checkUser = await pool
+  let userId;
+  if (checkUser.recordset.length > 0 && checkUser.recordset[0].role_id === HOD_ROLE_ID) {
+    userId = checkUser.recordset[0].user_id;
+  } else {
+    // Generate unique username
+    let username = baseUsername;
+    let counter = 1;
+    let userExists = true;
+
+    while (userExists) {
+      const checkUnique = await pool
+        .request()
+        .input("username", sql.VarChar, username)
+        .query("SELECT user_id FROM users WHERE LOWER(username) = LOWER(@username)");
+      if (checkUnique.recordset.length === 0) {
+        userExists = false;
+      } else {
+        username = `${baseUsername}_${counter}`;
+        counter++;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash("123456", 10);
+    const userResult = await pool
       .request()
       .input("username", sql.VarChar, username)
-      .query("SELECT user_id FROM users WHERE LOWER(username) = LOWER(@username)");
-    if (checkUser.recordset.length === 0) {
-      userExists = false;
-    } else {
-      username = `${baseUsername}_${counter}`;
-      counter++;
-    }
+      .input("password_hash", sql.VarChar, passwordHash)
+      .input("role_id", sql.Int, HOD_ROLE_ID)
+      .query(
+        `INSERT INTO users (username, password_hash, role_id, is_active)
+         OUTPUT INSERTED.user_id
+         VALUES (@username, @password_hash, @role_id, 1)`
+      );
+    userId = userResult.recordset[0].user_id;
   }
-
-  const passwordHash = await bcrypt.hash("123456", 10);
-
-  const userResult = await pool
-    .request()
-    .input("username", sql.VarChar, username)
-    .input("password_hash", sql.VarChar, passwordHash)
-    .input("role_id", sql.Int, HOD_ROLE_ID)
-    .query(
-      `INSERT INTO users (username, password_hash, role_id, is_active)
-       OUTPUT INSERTED.user_id
-       VALUES (@username, @password_hash, @role_id, 1)`
-    );
-
-  const userId = userResult.recordset[0].user_id;
 
   const hodResult = await pool
     .request()

@@ -64,7 +64,7 @@ export default function SecurityManagement() {
     <div>
       <PageHeader
         title="Security Accounts"
-        subtitle="Manage security guard accounts. Security guards log in via the Labour Portal."
+        subtitle="Manage security guard accounts. Security guards log in via the Employee Portal."
       />
       <Alert type={message.type} message={message.text} onClose={() => setMessage({ type: "", text: "" })} />
 

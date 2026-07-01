@@ -21,10 +21,22 @@ const fileFilter = (req, file, cb) => {
   else cb(new Error("Only images and PDF files are allowed"));
 };
 
+const zipFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext === ".zip") cb(null, true);
+  else cb(new Error("Only ZIP files are allowed"));
+};
+
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter,
 });
 
-module.exports = { upload, uploadDir };
+const uploadZip = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: zipFilter,
+});
+
+module.exports = { upload, uploadZip, uploadDir };

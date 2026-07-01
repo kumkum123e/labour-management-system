@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageHeader from "../../components/common/PageHeader";
 import Alert from "../../components/common/Alert";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
-import { getLabour, updateLabour } from "../../services/labourService";
+import { getLabour, updateLabour, uploadDocument } from "../../services/labourService";
 import { getDepartments, getDepartmentHods } from "../../services/departmentService";
 
 export default function EditLabour() {
@@ -13,8 +13,10 @@ export default function EditLabour() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [photo, setPhoto] = useState(null);
   const { register, handleSubmit, reset, watch } = useForm();
   const departmentId = watch("departmentId");
+  const typedHodName = watch("hodName");
 
   const { data, isLoading } = useQuery({ queryKey: ["labour", id], queryFn: () => getLabour(id) });
   const { data: deptRes } = useQuery({ queryKey: ["departments"], queryFn: getDepartments });
@@ -35,24 +37,35 @@ export default function EditLabour() {
         phone: l.phone || "",
         address: l.address || "",
         departmentId: l.departmentID,
-        hodId: l.hodID || "",
+        hodName: l.hodName || "",
         hodMobile: "",
+        photoUrl: "",
       });
     }
   }, [data, reset]);
 
   const onSubmit = async (form) => {
     try {
-      await updateLabour(id, {
+      const payload = {
         labourName: form.labourName,
         contractorName: form.contractorName,
         phone: form.phone,
         address: form.address,
         departmentId: parseInt(form.departmentId, 10),
-        hodId: form.hodId ? parseInt(form.hodId, 10) : undefined,
         hodMobile: form.hodMobile || undefined,
-      });
-      setMessage({ type: "success", text: "Labour profile updated" });
+      };
+
+      if (form.hodName?.trim()) {
+        payload.hodName = form.hodName.trim();
+      } else {
+        payload.hodId = null;
+      }
+
+      await updateLabour(id, payload);
+      if (photo) {
+        await uploadDocument(id, photo, "photo");
+      }
+      setMessage({ type: "success", text: "Employee profile updated" });
       qc.invalidateQueries({ queryKey: ["all-hods"] });
       qc.invalidateQueries({ queryKey: ["labours"] });
       setTimeout(() => navigate("/admin/labour"), 1200);
@@ -63,14 +76,16 @@ export default function EditLabour() {
 
   if (isLoading) return <LoadingSpinner />;
   const labour = data?.data;
-  const assignedHod = (hodsRes?.data || []).find((h) => h.hodID === labour?.hodID);
+  const assignedHod = (hodsRes?.data || []).find(
+    (h) => h.hodName?.trim().toLowerCase() === typedHodName?.trim().toLowerCase()
+  );
 
   return (
     <div>
-      <PageHeader title="Edit Labour" subtitle={`${labour?.labourName} (${labour?.employeeCode})`} />
+      <PageHeader title="Edit Employee" subtitle={`${labour?.labourName} (${labour?.employeeCode})`} />
       <Alert type={message.type} message={message.text} />
       <form onSubmit={handleSubmit(onSubmit)} className="card-panel max-w-2xl space-y-4">
-        <label className="text-sm font-medium">Labour Name
+        <label className="text-sm font-medium">Employee Name
           <input className="form-input" {...register("labourName", { required: true })} />
         </label>
         <label className="text-sm font-medium">Contractor
@@ -83,20 +98,18 @@ export default function EditLabour() {
             ))}
           </select>
         </label>
-        <label className="text-sm font-medium">Assigned HOD
-          <select className="form-input" {...register("hodId")}>
-            <option value="">None</option>
-            {(hodsRes?.data || []).map((h) => (
-              <option key={h.hodID} value={h.hodID}>{h.hodName}</option>
-            ))}
-          </select>
+        <label className="text-sm font-medium">Assigned HOD Name
+          <input className="form-input" placeholder="Type HOD name e.g. Rajesh" {...register("hodName")} />
         </label>
         <label className="text-sm font-medium">
           HOD Mobile (updates HOD phone on save)
           <input className="form-input" placeholder={assignedHod?.mobileNumber || "Enter to update HOD mobile"} {...register("hodMobile")} />
         </label>
-        <label className="text-sm font-medium">Labour Mobile
+        <label className="text-sm font-medium">Employee Mobile
           <input className="form-input" {...register("phone")} />
+        </label>
+        <label className="text-sm font-medium">Upload Photo
+          <input type="file" accept="image/*" className="form-input" onChange={(e) => setPhoto(e.target.files?.[0])} />
         </label>
         <label className="text-sm font-medium">Address
           <textarea className="form-input" rows={2} {...register("address")} />

@@ -9,7 +9,7 @@ export default function Login() {
     {
       name: "Admin Portal",
       path: "/admin-login",
-      description: "Manage departments, HOD accounts, and system-wide labour records.",
+      description: "Manage departments, HOD accounts, and system-wide employee records.",
       icon: FaUserShield,
       color: "blue",
       bgClass: "bg-blue-50 text-blue-800 border-blue-100 hover:border-blue-300 hover:shadow-blue-900/5 hover:bg-blue-50/80",
@@ -18,14 +18,14 @@ export default function Login() {
     {
       name: "HOD Portal",
       path: "/hod-login",
-      description: "Manage department labour profiles, outings, and requests.",
+      description: "Manage department employee profiles, outings, and requests.",
       icon: FaUserTie,
       color: "emerald",
       bgClass: "bg-emerald-50 text-emerald-800 border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-900/5 hover:bg-emerald-50/80",
       iconClass: "bg-emerald-100 text-emerald-700",
     },
     {
-      name: "Labour Portal",
+      name: "Employee Portal",
       path: "/labour-login",
       description: "View outings, request approvals, and view system notifications.",
       icon: FaHardHat,
@@ -40,7 +40,7 @@ export default function Login() {
       <div className="w-full max-w-4xl rounded-3xl bg-white/95 backdrop-blur-md p-8 sm:p-12 shadow-2xl border border-slate-100/50">
         <div className="text-center mb-10">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-            Labour Management System
+            Frigerio Conserva Allana Pvt Ltd Management System
           </h1>
           <p className="mt-3 text-base sm:text-lg text-slate-500 max-w-xl mx-auto">
             Select your workspace portal below to access the management dashboards and portal applications.
@@ -89,7 +89,7 @@ export default function Login() {
         </div>
 
         <div className="mt-12 text-center text-xs text-slate-400">
-          Labour Management System &copy; {new Date().getFullYear()} &bull; Enterprise Edition
+          Frigerio Conserva Allana Pvt Ltd Management System &copy; {new Date().getFullYear()} &bull; Enterprise Edition
         </div>
       </div>
     </div>

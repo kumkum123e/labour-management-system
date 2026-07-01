@@ -6,7 +6,8 @@ import Alert from "../../components/common/Alert";
 import api from "../../services/api";
 import { FiPrinter, FiSearch, FiFileText, FiClock, FiCheckCircle, FiXCircle, FiDownload } from "react-icons/fi";
 import Modal from "../../components/modals/Modal";
-import { exportToPdf, exportToExcel } from "../../utils/exportHelpers";
+import { exportToPdf, exportToExcel, exportSinglePassToPdf } from "../../utils/exportHelpers";
+import { formatTime } from "../../utils/timeFormat";
 
 export default function SecurityReports() {
   const [search, setSearch] = useState("");
@@ -16,8 +17,7 @@ export default function SecurityReports() {
   const exportColumns = [
     { key: "requestID", label: "Pass ID" },
     { key: "employeeCode", label: "Employee ID" },
-    { key: "labourName", label: "Labour Name" },
-    { key: "contractorName", label: "Contractor" },
+    { key: "labourName", label: "Employee Name" },
     { key: "departmentName", label: "Department" },
     { key: "requestDateFormatted", label: "Outing Date" },
     { key: "outTime", label: "Out Time" },
@@ -31,6 +31,8 @@ export default function SecurityReports() {
     const exportRows = filteredList.map((r) => ({
       ...r,
       requestDateFormatted: new Date(r.requestDate).toLocaleDateString(),
+      outTime: formatTime(r.outTime),
+      returnTime: formatTime(r.returnTime),
     }));
     exportToPdf("Outing_Report", exportRows, exportColumns);
   };
@@ -39,16 +41,43 @@ export default function SecurityReports() {
     const exportRows = filteredList.map((r) => ({
       ...r,
       requestDateFormatted: new Date(r.requestDate).toLocaleDateString(),
+      outTime: formatTime(r.outTime),
+      returnTime: formatTime(r.returnTime),
     }));
     exportToExcel("Outing_Report", exportRows, exportColumns);
   };
 
-  const { data: requestsRes, isLoading, isError, error } = useQuery({
+  const [returnModalPass, setReturnModalPass] = useState(null);
+  const [returnStatus, setReturnStatus] = useState("Returned");
+  const [returnRemarks, setReturnRemarks] = useState("");
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+
+  const { data: requestsRes, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["security-outing-requests"],
     queryFn: () => api.get("/api/outing-requests").then((r) => r.data),
   });
 
   const list = requestsRes?.data || [];
+
+  const handleSaveReturn = async (e) => {
+    e.preventDefault();
+    if (!returnModalPass) return;
+    setReturnSubmitting(true);
+    try {
+      await api.patch(`/api/outing-requests/${returnModalPass.requestID}/return`, {
+        returnStatus,
+        remarks: returnRemarks,
+      });
+      refetch();
+      setReturnModalPass(null);
+      setReturnRemarks("");
+      setReturnStatus("Returned");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to record return");
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
 
   // Filter list based on search term (Employee Code or Name) and status
   const filteredList = list.filter((r) => {
@@ -94,39 +123,45 @@ export default function SecurityReports() {
           <div class="pass-container">
             <div class="header">
               <h1>OUTING PASS</h1>
-              <p>Labour Management System</p>
+              <p>Frigerio Conserva Allana Pvt Ltd</p>
               <div class="status-stamp status-${req.status}">${req.status}</div>
             </div>
-            <div class="details-grid">
-              <div class="label">Pass ID:</div>
-              <div class="value"><strong>#OP-${req.requestID}</strong></div>
+            <div style="display: flex; gap: 20px; align-items: flex-start; justify-content: space-between;">
+              <div class="details-grid" style="flex: 1; margin-bottom: 0;">
+                <div class="label">Pass ID:</div>
+                <div class="value"><strong>#OP-${req.requestID}</strong></div>
 
-              <div class="label">Employee ID:</div>
-              <div class="value">${req.employeeCode}</div>
+                <div class="label">Employee ID:</div>
+                <div class="value">${req.employeeCode}</div>
 
-              <div class="label">Labour Name:</div>
-              <div class="value"><strong>${req.labourName}</strong></div>
+                <div class="label">Employee Name:</div>
+                <div class="value"><strong>${req.labourName}</strong></div>
 
-              <div class="label">Contractor:</div>
-              <div class="value">${req.contractorName || "—"}</div>
+                <div class="label">Department:</div>
+                <div class="value">${req.departmentName}</div>
 
-              <div class="label">Department:</div>
-              <div class="value">${req.departmentName}</div>
+                <div class="label">Outing Date:</div>
+                <div class="value">${new Date(req.requestDate).toLocaleDateString()}</div>
 
-              <div class="label">Outing Date:</div>
-              <div class="value">${new Date(req.requestDate).toLocaleDateString()}</div>
+                <div class="label">Out Time:</div>
+                <div class="value">${formatTime(req.outTime)}</div>
 
-              <div class="label">Out Time:</div>
-              <div class="value">${req.outTime}</div>
+                <div class="label">Return Time:</div>
+                <div class="value">${formatTime(req.returnTime) || "—"}</div>
 
-              <div class="label">Return Time:</div>
-              <div class="value">${req.returnTime || "—"}</div>
+                <div class="label">Reason:</div>
+                <div class="value">${req.reason}</div>
 
-              <div class="label">Reason:</div>
-              <div class="value">${req.reason}</div>
-
-              <div class="label">Assigned HOD:</div>
-              <div class="value">${req.hodName}</div>
+                <div class="label">Assigned HOD:</div>
+                <div class="value">${req.hodName}</div>
+              </div>
+              <div style="flex-shrink: 0; text-align: center;">
+                ${
+                  req.photoUrl
+                    ? `<img src="http://localhost:5000/${req.photoUrl}" style="width: 100px; height: 110px; object-fit: cover; border: 1.5px solid #cbd5e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" />`
+                    : `<div style="width: 100px; height: 110px; border: 1.5px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; background-color: #f8fafc; font-weight: 500; box-sizing: border-box; padding: 10px;">No Photo</div>`
+                }
+              </div>
             </div>
             ${
               req.securitySignature
@@ -233,7 +268,7 @@ export default function SecurityReports() {
           <FiSearch className="absolute left-3 top-3.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by Employee ID or Labour Name..."
+            placeholder="Search by Employee ID or Employee Name..."
             className="form-input pl-9 text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -263,7 +298,7 @@ export default function SecurityReports() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-500 text-left">
                   <th className="py-3 px-4 font-semibold">Pass ID</th>
-                  <th className="py-3 px-4 font-semibold">Labour Info</th>
+                  <th className="py-3 px-4 font-semibold">Employee Info</th>
                   <th className="py-3 px-4 font-semibold">Outing Details</th>
                   <th className="py-3 px-4 font-semibold">Assigned HOD</th>
                   <th className="py-3 px-4 font-semibold">Signature</th>
@@ -278,12 +313,12 @@ export default function SecurityReports() {
                     <td className="py-3 px-4">
                       <div className="font-semibold text-slate-900">{req.labourName}</div>
                       <div className="text-xs text-slate-400">
-                        Code: {req.employeeCode} · Cont: {req.contractorName || "—"}
+                        Code: {req.employeeCode}
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <div>
-                        {new Date(req.requestDate).toLocaleDateString()} at <strong>{req.outTime}</strong>
+                        {new Date(req.requestDate).toLocaleDateString()} at <strong>{formatTime(req.outTime)}</strong>
                       </div>
                       <div className="text-xs text-slate-500 italic max-w-xs truncate" title={req.reason}>
                         "{req.reason}"
@@ -309,6 +344,10 @@ export default function SecurityReports() {
                             ? "bg-emerald-100 text-emerald-800"
                             : req.status === "Rejected"
                             ? "bg-red-100 text-red-800"
+                            : req.status === "Returned"
+                            ? "bg-blue-100 text-blue-800"
+                            : req.status === "Not Returned"
+                            ? "bg-slate-200 text-slate-800 border border-slate-300"
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
@@ -331,6 +370,26 @@ export default function SecurityReports() {
                         >
                           <FiPrinter size={12} /> Print
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => exportSinglePassToPdf(req)}
+                          className="inline-flex items-center gap-1 bg-slate-100 hover:bg-amber-600 hover:text-white text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
+                        >
+                          <FiDownload size={12} /> PDF
+                        </button>
+                        {req.status === "Approved" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReturnModalPass(req);
+                              setReturnStatus("Returned");
+                              setReturnRemarks("");
+                            }}
+                            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-emerald-600 hover:text-white text-amber-700 px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm border border-amber-200"
+                          >
+                            Record Return
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -352,7 +411,7 @@ export default function SecurityReports() {
             <div className="border border-slate-200 p-5 rounded-2xl bg-white shadow-inner relative overflow-hidden">
               <div className="text-center border-b border-slate-100 pb-3 mb-4">
                 <h2 className="text-xl font-bold tracking-wider text-slate-800 uppercase">Outing Pass</h2>
-                <p className="text-xs text-slate-400">Labour Management System</p>
+                <p className="text-xs text-slate-400">Frigerio Conserva Allana Pvt Ltd</p>
                 <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold mt-2 ${
                   selectedPass.status === "Approved"
                     ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
@@ -370,11 +429,8 @@ export default function SecurityReports() {
                 <span className="font-semibold text-slate-400">Employee ID:</span>
                 <span className="col-span-2">{selectedPass.employeeCode}</span>
 
-                <span className="font-semibold text-slate-400">Labour Name:</span>
+                <span className="font-semibold text-slate-400">Employee Name:</span>
                 <span className="col-span-2 font-semibold text-slate-900">{selectedPass.labourName}</span>
-
-                <span className="font-semibold text-slate-400">Contractor:</span>
-                <span className="col-span-2">{selectedPass.contractorName || "—"}</span>
 
                 <span className="font-semibold text-slate-400">Department:</span>
                 <span className="col-span-2">{selectedPass.departmentName}</span>
@@ -383,16 +439,30 @@ export default function SecurityReports() {
                 <span className="col-span-2">{new Date(selectedPass.requestDate).toLocaleDateString()}</span>
 
                 <span className="font-semibold text-slate-400">Out Time:</span>
-                <span className="col-span-2">{selectedPass.outTime}</span>
+                <span className="col-span-2">{formatTime(selectedPass.outTime)}</span>
 
                 <span className="font-semibold text-slate-400">Return Time:</span>
-                <span className="col-span-2">{selectedPass.returnTime || "—"}</span>
+                <span className="col-span-2">{formatTime(selectedPass.returnTime) || "—"}</span>
 
                 <span className="font-semibold text-slate-400">Reason:</span>
                 <span className="col-span-2">{selectedPass.reason}</span>
 
                 <span className="font-semibold text-slate-400">Assigned HOD:</span>
                 <span className="col-span-2">{selectedPass.hodName}</span>
+
+                {selectedPass.actualReturnTime && (
+                  <>
+                    <span className="font-semibold text-slate-400">Actual Return:</span>
+                    <span className="col-span-2 font-semibold text-blue-600">{formatTime(selectedPass.actualReturnTime)}</span>
+                  </>
+                )}
+
+                {selectedPass.securityRemarks && (
+                  <>
+                    <span className="font-semibold text-slate-400">Security Remarks:</span>
+                    <span className="col-span-2 text-slate-700 italic">"{selectedPass.securityRemarks}"</span>
+                  </>
+                )}
               </div>
 
               {selectedPass.securitySignature && (
@@ -416,7 +486,7 @@ export default function SecurityReports() {
               </button>
               <button
                 type="button"
-                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 border border-amber-600 rounded-lg transition"
+                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 border-amber-600 rounded-lg transition"
                 onClick={() => {
                   handlePrintPass(selectedPass);
                   setSelectedPass(null);
@@ -424,8 +494,93 @@ export default function SecurityReports() {
               >
                 <FiPrinter size={14} /> Print Pass
               </button>
+              <button
+                type="button"
+                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 border-amber-600 rounded-lg transition"
+                onClick={() => {
+                  exportSinglePassToPdf(selectedPass);
+                  setSelectedPass(null);
+                }}
+              >
+                <FiDownload size={14} /> Download PDF
+              </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Record Return Modal */}
+      <Modal
+        open={!!returnModalPass}
+        onClose={() => setReturnModalPass(null)}
+        title="Record Labour Return"
+      >
+        {returnModalPass && (
+          <form onSubmit={handleSaveReturn} className="space-y-4">
+            <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 space-y-1">
+              <p><strong>Labour:</strong> {returnModalPass.labourName} ({returnModalPass.employeeCode})</p>
+              <p><strong>Department:</strong> {returnModalPass.departmentName}</p>
+              <p><strong>Out Time:</strong> {formatTime(returnModalPass.outTime)}</p>
+              <p><strong>Expected Return:</strong> {formatTime(returnModalPass.returnTime)}</p>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 block mb-2">Return Status *</label>
+              <div className="flex gap-4">
+                <label className="inline-flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-800">
+                  <input
+                    type="radio"
+                    name="returnStatus"
+                    value="Returned"
+                    checked={returnStatus === "Returned"}
+                    onChange={() => setReturnStatus("Returned")}
+                    className="text-amber-600 focus:ring-amber-500"
+                  />
+                  Returned
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-800">
+                  <input
+                    type="radio"
+                    name="returnStatus"
+                    value="Not Returned"
+                    checked={returnStatus === "Not Returned"}
+                    onChange={() => setReturnStatus("Not Returned")}
+                    className="text-amber-600 focus:ring-amber-500"
+                  />
+                  Did Not Return (Absent / "not come")
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 block mb-1">Remarks</label>
+              <textarea
+                className="form-input text-sm w-full"
+                rows={3}
+                placeholder={returnStatus === "Not Returned" ? "e.g. Write details like 'they are not come' or why they are absent..." : "Enter any remarks (optional)..."}
+                value={returnRemarks}
+                onChange={(e) => setReturnRemarks(e.target.value)}
+                required={returnStatus === "Not Returned"}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                className="btn-outline px-4 py-2 text-sm font-semibold rounded-lg hover:bg-slate-50 transition border border-slate-200"
+                onClick={() => setReturnModalPass(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={returnSubmitting}
+                className="btn-primary px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 border border-amber-600 rounded-lg transition"
+              >
+                {returnSubmitting ? "Saving..." : "Save Return"}
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>

@@ -28,6 +28,8 @@ const mapRequest = (row) => ({
   securityUserID: row.security_user_id,
   securityUsername: row.security_username,
   securitySignature: row.security_signature,
+  actualReturnTime: row.actual_return_time,
+  securityRemarks: row.security_remarks,
 });
 
 const baseSelect = `
@@ -39,7 +41,8 @@ const baseSelect = `
          r.request_date, r.out_time, r.return_time, r.reason, r.status,
          r.hod_remarks, r.approved_by, r.approved_at, r.rejected_by, r.rejected_at,
          ISNULL(r.is_urgent, 0) AS is_urgent, r.created_at,
-         r.security_user_id, su.username AS security_username, r.security_signature
+         r.security_user_id, su.username AS security_username, r.security_signature,
+         r.actual_return_time, r.security_remarks
   FROM outing_requests r
   LEFT JOIN labour_profiles lp ON r.labour_id = lp.labour_id
   LEFT JOIN security_profiles sp ON r.security_id = sp.security_id
@@ -209,12 +212,10 @@ const getOutingRequests = async (actor) => {
   }
 
   if (role === "HOD") {
-    const hod = await hodService.getHodByUserId(actor.id);
-    if (!hod) return [];
     const result = await pool
       .request()
-      .input("hod_id", sql.Int, hod.hodID)
-      .query(`${baseSelect} WHERE r.hod_id = @hod_id ORDER BY r.created_at DESC`);
+      .input("user_id", sql.Int, actor.id)
+      .query(`${baseSelect} WHERE r.hod_id IN (SELECT hod_id FROM hod_profiles WHERE user_id = @user_id) ORDER BY r.created_at DESC`);
     return result.recordset.map(mapRequest);
   }
 
@@ -231,8 +232,7 @@ const getOutingRequests = async (actor) => {
   if (role === "SECURITY") {
     const result = await pool
       .request()
-      .input("security_user_id", sql.Int, actor.id)
-      .query(`${baseSelect} WHERE r.security_user_id = @security_user_id ORDER BY r.created_at DESC`);
+      .query(`${baseSelect} ORDER BY r.created_at DESC`);
     return result.recordset.map(mapRequest);
   }
 
@@ -246,8 +246,13 @@ const assertCanView = async (actor, requestId) => {
   if (role === "ADMIN") return request;
 
   if (role === "HOD") {
-    const hod = await hodService.getHodByUserId(actor.id);
-    if (hod && Number(hod.hodID) === Number(request.hodID)) return request;
+    const pool = getPool();
+    const check = await pool
+      .request()
+      .input("user_id", sql.Int, actor.id)
+      .input("hod_id", sql.Int, request.hodID)
+      .query("SELECT 1 FROM hod_profiles WHERE user_id = @user_id AND hod_id = @hod_id");
+    if (check.recordset.length > 0) return request;
     throw new AppError("Not authorized to view this request", 403);
   }
 
@@ -258,8 +263,7 @@ const assertCanView = async (actor, requestId) => {
   }
 
   if (role === "SECURITY") {
-    if (Number(request.securityUserID) === Number(actor.id)) return request;
-    throw new AppError("Not authorized to view this request", 403);
+    return request;
   }
 
   throw new AppError("Not authorized", 403);
@@ -278,8 +282,13 @@ const approveOutingRequest = async (requestId, actor, remarks) => {
   }
 
   if (role === "HOD") {
-    const hod = await hodService.getHodByUserId(actor.id);
-    if (!hod || Number(hod.hodID) !== Number(request.hodID)) {
+    const pool = getPool();
+    const check = await pool
+      .request()
+      .input("user_id", sql.Int, actor.id)
+      .input("hod_id", sql.Int, request.hodID)
+      .query("SELECT 1 FROM hod_profiles WHERE user_id = @user_id AND hod_id = @hod_id");
+    if (check.recordset.length === 0) {
       throw new AppError("This request is not assigned to you", 403);
     }
   }
@@ -312,8 +321,13 @@ const rejectOutingRequest = async (requestId, actor, remarks) => {
   }
 
   if (role === "HOD") {
-    const hod = await hodService.getHodByUserId(actor.id);
-    if (!hod || Number(hod.hodID) !== Number(request.hodID)) {
+    const pool = getPool();
+    const check = await pool
+      .request()
+      .input("user_id", sql.Int, actor.id)
+      .input("hod_id", sql.Int, request.hodID)
+      .query("SELECT 1 FROM hod_profiles WHERE user_id = @user_id AND hod_id = @hod_id");
+    if (check.recordset.length === 0) {
       throw new AppError("This request is not assigned to you", 403);
     }
   }
@@ -376,6 +390,39 @@ const getHodForRequest = async (hodId) => {
   };
 };
 
+const recordReturn = async (requestId, actor, data) => {
+  const request = await getOutingRequestById(requestId);
+  const role = String(actor.role).toUpperCase();
+
+  if (role !== "SECURITY" && role !== "ADMIN") {
+    throw new AppError("Only Security or Admin can record return", 403);
+  }
+
+  const { returnStatus, remarks } = data; // returnStatus is "Returned" or "Not Returned"
+  if (!returnStatus || (returnStatus !== "Returned" && returnStatus !== "Not Returned")) {
+    throw new AppError("Invalid returnStatus. Must be 'Returned' or 'Not Returned'", 400);
+  }
+
+  const actualReturnTime = returnStatus === "Returned" ? new Date() : null;
+
+  await getPool()
+    .request()
+    .input("request_id", sql.Int, requestId)
+    .input("status", sql.VarChar, returnStatus)
+    .input("actual_return_time", sql.DateTime, actualReturnTime)
+    .input("security_remarks", sql.VarChar(500), remarks || null)
+    .query(
+      `UPDATE outing_requests 
+       SET status = @status, 
+           actual_return_time = @actual_return_time, 
+           security_remarks = @security_remarks 
+       WHERE request_id = @request_id`
+    );
+
+  await recordApproval(requestId, request.status, returnStatus, actor.id, `Security recorded return: ${remarks || "No remarks"}`);
+  return getOutingRequestById(requestId);
+};
+
 module.exports = {
   createOutingRequest,
   getOutingRequests,
@@ -385,4 +432,5 @@ module.exports = {
   rejectOutingRequest,
   getAdminMonitor,
   getHodForRequest,
+  recordReturn,
 };

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/tables/DataTable";
 import { getOutingRequests } from "../../services/requestService";
+import { formatTime } from "../../utils/timeFormat";
 
 export default function RequestStatus() {
   const { data } = useQuery({ queryKey: ["labour-requests"], queryFn: getOutingRequests });
@@ -18,8 +19,8 @@ export default function RequestStatus() {
       label: "Date",
       render: (row) => row.requestDate ? new Date(row.requestDate).toLocaleDateString() : "—"
     },
-    { key: "outTime", label: "Out" },
-    { key: "returnTime", label: "Return" },
+    { key: "outTime", label: "Out", render: (row) => formatTime(row.outTime) },
+    { key: "returnTime", label: "Return", render: (row) => formatTime(row.returnTime) },
     { key: "reason", label: "Reason" },
     {
       key: "status",
